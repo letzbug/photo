@@ -21,29 +21,27 @@
     }
 
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;width:100%;min-height:100%}
+    html,body{margin:0;padding:0}
     body{
-      min-height:100dvh;
+      min-height:100vh;
       font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       color:var(--text);
       background:
         radial-gradient(900px 500px at 0% 0%, rgba(122,184,255,.15), transparent 55%),
         radial-gradient(900px 500px at 100% 0%, rgba(139,120,255,.14), transparent 55%),
         linear-gradient(180deg,var(--bg2),var(--bg));
-      overflow-x:hidden;
     }
 
     .wrap{
-      width:100%;
-      min-height:100dvh;
-      display:flex;
+      width:min(100%,520px);
+      margin:0 auto;
+      min-height:100vh;
+      display:grid;
       align-items:center;
-      justify-content:center;
-      padding:max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      padding:18px;
     }
 
     .card{
-      width:min(100%, 680px);
       background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
       border:1px solid var(--line);
       border-radius:var(--radius);
@@ -53,7 +51,7 @@
     }
 
     .hero{
-      padding:clamp(18px,4vw,26px) clamp(16px,4vw,24px) 18px;
+      padding:24px 22px 18px;
       border-bottom:1px solid var(--line2);
     }
 
@@ -68,21 +66,19 @@
       color:#dbe6ff;
       font-size:.8rem;
       margin-bottom:14px;
-      max-width:100%;
     }
 
     .dot{
       width:8px;
       height:8px;
       border-radius:999px;
-      flex:0 0 auto;
       background:linear-gradient(180deg,var(--accent1),var(--accent2));
       box-shadow:0 0 16px rgba(122,184,255,.7);
     }
 
     h1{
       margin:0;
-      font-size:clamp(1.55rem,6vw,2.15rem);
+      font-size:clamp(1.5rem,6vw,2rem);
       line-height:1.08;
       letter-spacing:-.03em;
     }
@@ -91,11 +87,11 @@
       margin:10px 0 0;
       color:var(--muted);
       line-height:1.55;
-      font-size:clamp(.92rem,3.2vw,1rem);
+      font-size:.96rem;
     }
 
     .body{
-      padding:clamp(16px,4vw,24px);
+      padding:20px 22px 22px;
       display:grid;
       gap:16px;
     }
@@ -115,7 +111,7 @@
     .label{
       color:var(--soft);
       font-size:.78rem;
-      margin-bottom:6px;
+      margin-bottom:5px;
     }
 
     .value,
@@ -131,7 +127,6 @@
       padding:0;
       margin:0;
       appearance:none;
-      min-height:24px;
     }
 
     .field::placeholder{color:#b8c7e1;font-weight:500}
@@ -168,16 +163,12 @@
     }
 
     button{
-      width:100%;
       border:none;
       cursor:pointer;
       border-radius:16px;
       padding:15px 16px;
       font:inherit;
-      font-size:1rem;
       transition:.2s ease;
-      min-height:52px;
-      -webkit-tap-highlight-color:transparent;
     }
 
     button:hover{transform:translateY(-1px)}
@@ -212,7 +203,6 @@
       background:rgba(255,255,255,.05);
       border:1px solid var(--line2);
       font-size:.88rem;
-      word-break:break-word;
     }
 
     .file-chip small{color:var(--soft)}
@@ -265,14 +255,12 @@
       margin-top:2px;
     }
 
-    @media (min-width:700px){
-      .actions{grid-template-columns:1fr 1fr}
-    }
-
     @media (max-width:420px){
-      .card{border-radius:20px}
+      .wrap{padding:12px}
+      .hero{padding:20px 16px 16px}
+      .body{padding:16px}
       .info-item,.dropzone{border-radius:18px}
-      button{padding:14px}
+      button{padding:14px 14px}
     }
   </style>
 </head>
@@ -289,7 +277,7 @@
         <div class="info">
           <div class="info-item">
             <div class="label">Rechercher votre nom</div>
-            <input id="trainerSearch" class="field" list="trainerNames" placeholder="Commencez à taper votre nom" autocomplete="off" />
+            <input id="trainerSearch" class="field" list="trainerNames" placeholder="Commencez à taper votre nom" />
             <datalist id="trainerNames"></datalist>
           </div>
 
@@ -318,8 +306,8 @@
           </div>
 
           <div class="actions">
-            <button class="ghost-btn" id="selectFilesBtn" type="button">Choisir des fichiers</button>
-            <button class="primary-btn" id="uploadBtn" type="button">Upload your files</button>
+            <button class="ghost-btn" id="selectFilesBtn">Choisir des fichiers</button>
+            <button class="primary-btn" id="uploadBtn">Upload your files</button>
           </div>
 
           <input id="fileInput" class="hidden-input" type="file" multiple accept="image/*,video/*" />
@@ -344,21 +332,31 @@
   <script>
     const TRAININGS_JSON_URL = 'https://raw.githubusercontent.com/letzbug/signage/bd15a5eddb1f8b2d7201c0db854fe107c97cd09e/data/trainings.json';
     const EVENT_DATE = '2026-05-08';
-    const GLOBAL_ONEDRIVE_UPLOAD_LINK = 'https://365education-my.sharepoint.com/:f:/g/personal/glafr179_365_education_lu/IgBTzExZbFSeRIfifqSmSx3jAbATkuBLKihNqcqn11tRumw';
+
+    const ONEDRIVE_LINKS = {
+      // Beispiel:
+      // 'lea-valet': {
+      //   'Bestiaire illustré - Créatures réelles et imaginaires - dessin, gravure': 'https://...onedrive-link-1...',
+      //   'Imaginaire et processus créatifs - collage, gravure, illustrations': 'https://...onedrive-link-2...'
+      // },
+      // 'aurelie-andreos': {
+      //   'Yoga Vinyasa Lunch 2': 'https://...onedrive-link-3...'
+      // }
+    };
 
     const FALLBACK_TRAINERS = [
       {
         slug:'jean-dupont',
         name:'Jean Dupont',
         courses:[
-          { course:'Photo créative', lang:'FR', onedrive:GLOBAL_ONEDRIVE_UPLOAD_LINK }
+          { course:'Photo créative', lang:'FR', onedrive:'https://YOUR-ONEDRIVE-LINK-JEAN' }
         ]
       },
       {
         slug:'marie-schmit',
         name:'Marie Schmit',
         courses:[
-          { course:'Réseaux sociaux', lang:'FR', onedrive:GLOBAL_ONEDRIVE_UPLOAD_LINK }
+          { course:'Réseaux sociaux', lang:'FR', onedrive:'https://YOUR-ONEDRIVE-LINK-MARIE' }
         ]
       }
     ];
@@ -438,7 +436,14 @@
         </div>
       `).join('');
 
-      updateProgress(28, `${selectedFiles.length} fichier${selectedFiles.length > 1 ? 's' : ''} sélectionné${selectedFiles.length > 1 ? 's' : ''}`);
+      updateProgress(
+        28,
+        `${selectedFiles.length} fichier${selectedFiles.length > 1 ? 's' : ''} sélectionné${selectedFiles.length > 1 ? 's' : ''}`
+      );
+    }
+
+    function getOnedriveLink(trainerSlug, courseTitle){
+      return ONEDRIVE_LINKS?.[trainerSlug]?.[courseTitle] || '';
     }
 
     function groupTrainingsByTeacher(trainings){
@@ -466,11 +471,13 @@
           });
         }
 
+        const courseTitle = item.intitule || item.coursCode || '—';
+
         map.get(slug).courses.push({
-          course: item.intitule || item.coursCode || '—',
+          course: courseTitle,
           lang: item.langueCoursCode || item.langueCoursNom || '—',
           coursCode: item.coursCode || item.coursId || '—',
-          onedrive: GLOBAL_ONEDRIVE_UPLOAD_LINK
+          onedrive: getOnedriveLink(slug, courseTitle)
         });
       });
 
@@ -585,6 +592,7 @@
       });
 
       els.courseSelect.addEventListener('change', updateSelectedCourse);
+
       els.selectFilesBtn.addEventListener('click', () => els.fileInput.click());
 
       els.fileInput.addEventListener('change', e => {
@@ -604,7 +612,7 @@
           e.preventDefault();
           if(evt === 'drop'){
             selectedFiles = [...(e.dataTransfer.files || [])].filter(
-              f => /^image\\//.test(f.type) || /^video\\//.test(f.type)
+              f => /^image\//.test(f.type) || /^video\//.test(f.type)
             );
             renderFiles();
           }
