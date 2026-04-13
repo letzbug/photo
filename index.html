@@ -16,6 +16,7 @@
       --soft:#95a9cd;
       --accent1:#7ab8ff;
       --accent2:#8b78ff;
+      --good:#7ef0b3;
       --shadow:0 18px 50px rgba(0,0,0,.35);
       --radius:26px;
     }
@@ -47,7 +48,7 @@
       border-radius:var(--radius);
       box-shadow:var(--shadow);
       backdrop-filter:blur(14px);
-      overflow:hidden;
+      overflow:visible;
     }
 
     .hero{
@@ -78,7 +79,7 @@
 
     h1{
       margin:0;
-      font-size:clamp(1.55rem,6vw,2rem);
+      font-size:clamp(1.5rem,6vw,2rem);
       line-height:1.08;
       letter-spacing:-.03em;
     }
@@ -135,12 +136,57 @@
       margin:0;
       appearance:none;
       -webkit-appearance:none;
-      border-radius:0;
     }
 
     .field::placeholder{
       color:#b8c7e1;
       font-weight:500;
+    }
+
+    .search-box{
+      position:relative;
+    }
+
+    .suggestions{
+      position:absolute;
+      top:calc(100% + 8px);
+      left:0;
+      right:0;
+      z-index:50;
+      display:none;
+      max-height:240px;
+      overflow:auto;
+      background:#ffffff;
+      color:#111827;
+      border-radius:16px;
+      box-shadow:0 18px 45px rgba(0,0,0,.30);
+      border:1px solid rgba(0,0,0,.08);
+    }
+
+    .suggestions.show{
+      display:block;
+    }
+
+    .suggestion-item{
+      width:100%;
+      border:none;
+      background:transparent;
+      color:#111827;
+      text-align:left;
+      padding:14px 16px;
+      font:inherit;
+      font-size:16px;
+      cursor:pointer;
+      border-bottom:1px solid rgba(0,0,0,.06);
+    }
+
+    .suggestion-item:last-child{
+      border-bottom:none;
+    }
+
+    .suggestion-item:hover,
+    .suggestion-item.active{
+      background:#f3f6fb;
     }
 
     .dropzone{
@@ -182,7 +228,6 @@
       font:inherit;
       font-size:16px;
       transition:.2s ease;
-      -webkit-tap-highlight-color:transparent;
     }
 
     button:hover{transform:translateY(-1px)}
@@ -275,6 +320,9 @@
       .body{padding:16px}
       .info-item,.dropzone{border-radius:18px}
       button{padding:14px 14px}
+      .suggestions{
+        max-height:200px;
+      }
     }
   </style>
 </head>
@@ -291,8 +339,10 @@
         <div class="info">
           <div class="info-item">
             <div class="label">Rechercher votre nom</div>
-            <input id="trainerSearch" class="field" list="trainerNames" placeholder="Commencez à taper votre nom" autocomplete="off" />
-            <datalist id="trainerNames"></datalist>
+            <div class="search-box">
+              <input id="trainerSearch" class="field" placeholder="Commencez à taper votre nom" autocomplete="off" />
+              <div id="suggestions" class="suggestions"></div>
+            </div>
           </div>
 
           <div class="info-item">
@@ -368,10 +418,12 @@
     let TRAINERS = [];
     let selectedTrainer = null;
     let selectedFiles = [];
+    let filteredSuggestions = [];
+    let activeSuggestionIndex = -1;
 
     const els = {
       trainerSearch:document.getElementById('trainerSearch'),
-      trainerNames:document.getElementById('trainerNames'),
+      suggestions:document.getElementById('suggestions'),
       trainerName:document.getElementById('trainerName'),
       courseSelect:document.getElementById('courseSelect'),
       trainerLang:document.getElementById('trainerLang'),
@@ -511,12 +563,6 @@
       }
     }
 
-    function populateTrainerSearch(){
-      els.trainerNames.innerHTML = TRAINERS
-        .map(trainer => `<option value="${escapeHtml(trainer.name)}"></option>`)
-        .join('');
-    }
-
     function populateCourses(){
       els.courseSelect.innerHTML = '<option value="">Sélectionnez votre cours</option>';
 
@@ -552,6 +598,78 @@
       if(!selectedTrainer) return '';
       const picked = selectedTrainer.courses?.[Number(els.courseSelect.value)];
       return picked?.onedrive || '';
+    }
+
+    function hideSuggestions(){
+      els.suggestions.classList.remove('show');
+      els.suggestions.innerHTML = '';
+      filteredSuggestions = [];
+      activeSuggestionIndex = -1;
+    }
+
+    function selectTrainer(trainer){
+      selectedTrainer = trainer;
+      els.trainerSearch.value = trainer.name;
+      renderTrainer();
+      hideSuggestions();
+    }
+
+    function renderSuggestions(list){
+      if(!list.length){
+        hideSuggestions();
+        return;
+      }
+
+      filteredSuggestions = list;
+      activeSuggestionIndex = -1;
+
+      els.suggestions.innerHTML = list.map((trainer, index) => `
+        <button type="button" class="suggestion-item" data-index="${index}">
+          ${escapeHtml(trainer.name)}
+        </button>
+      `).join('');
+
+      els.suggestions.classList.add('show');
+
+      els.suggestions.querySelectorAll('.suggestion-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const trainer = filteredSuggestions[Number(btn.dataset.index)];
+          if(trainer) selectTrainer(trainer);
+        });
+      });
+    }
+
+    function filterSuggestions(query){
+      const q = query.trim().toLowerCase();
+      if(!q){
+        hideSuggestions();
+        return;
+      }
+
+      const results = TRAINERS.filter(t => t.name.toLowerCase().includes(q)).slice(0, 8);
+      renderSuggestions(results);
+    }
+
+    function moveSuggestion(direction){
+      if(!filteredSuggestions.length) return;
+
+      activeSuggestionIndex += direction;
+
+      if(activeSuggestionIndex < 0) activeSuggestionIndex = filteredSuggestions.length - 1;
+      if(activeSuggestionIndex >= filteredSuggestions.length) activeSuggestionIndex = 0;
+
+      const items = [...els.suggestions.querySelectorAll('.suggestion-item')];
+      items.forEach((item, index) => item.classList.toggle('active', index === activeSuggestionIndex));
+
+      const activeItem = items[activeSuggestionIndex];
+      if(activeItem){
+        activeItem.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    function chooseActiveSuggestion(){
+      if(activeSuggestionIndex < 0 || activeSuggestionIndex >= filteredSuggestions.length) return;
+      selectTrainer(filteredSuggestions[activeSuggestionIndex]);
     }
 
     function simulateUploadAndRedirect(){
@@ -597,18 +715,34 @@
 
     function bindEvents(){
       els.trainerSearch.addEventListener('input', () => {
-        const value = els.trainerSearch.value.trim().toLowerCase();
-        const found = TRAINERS.find(t => t.name.toLowerCase() === value) || null;
-        selectedTrainer = found;
-        els.trainerName.textContent = selectedTrainer?.name || '—';
-        populateCourses();
+        selectedTrainer = null;
+        els.trainerName.textContent = '—';
+        els.courseSelect.innerHTML = '<option value="">Sélectionnez votre cours</option>';
+        els.trainerLang.textContent = '—';
+        filterSuggestions(els.trainerSearch.value);
       });
 
-      els.trainerSearch.addEventListener('change', () => {
-        const value = els.trainerSearch.value.trim().toLowerCase();
-        const found = TRAINERS.find(t => t.name.toLowerCase() === value) || null;
-        selectedTrainer = found;
-        renderTrainer();
+      els.trainerSearch.addEventListener('focus', () => {
+        if(els.trainerSearch.value.trim()){
+          filterSuggestions(els.trainerSearch.value);
+        }
+      });
+
+      els.trainerSearch.addEventListener('keydown', (e) => {
+        if(!filteredSuggestions.length) return;
+
+        if(e.key === 'ArrowDown'){
+          e.preventDefault();
+          moveSuggestion(1);
+        } else if(e.key === 'ArrowUp'){
+          e.preventDefault();
+          moveSuggestion(-1);
+        } else if(e.key === 'Enter'){
+          e.preventDefault();
+          chooseActiveSuggestion();
+        } else if(e.key === 'Escape'){
+          hideSuggestions();
+        }
       });
 
       els.courseSelect.addEventListener('change', updateSelectedCourse);
@@ -641,11 +775,16 @@
       });
 
       els.uploadBtn.addEventListener('click', simulateUploadAndRedirect);
+
+      document.addEventListener('click', (e) => {
+        if(!e.target.closest('.search-box')){
+          hideSuggestions();
+        }
+      });
     }
 
     async function init(){
       await loadTrainerData();
-      populateTrainerSearch();
       detectTrainerFromUrl();
       bindEvents();
 
