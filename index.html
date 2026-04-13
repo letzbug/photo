@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>UniPop Upload</title>
+  <style>
+    :root{
+      --bg:#07111f;
+      --bg2:#0b1730;
+      --card:rgba(255,255,255,.07);
+      --line:rgba(255,255,255,.12);
+      --line2:rgba(255,255,255,.08);
+      --text:#f4f7ff;
+      --muted:#c7d5f0;
+      --soft:#95a9cd;
+      --accent1:#7ab8ff;
+      --accent2:#8b78ff;
+      --good:#7ef0b3;
+      --shadow:0 18px 50px rgba(0,0,0,.35);
+      --radius:26px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      min-height:100vh;
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(900px 500px at 0% 0%, rgba(122,184,255,.15), transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, rgba(139,120,255,.14), transparent 55%),
+        linear-gradient(180deg,var(--bg2),var(--bg));
+    }
+
+    .wrap{
+      width:min(100%,520px);
+      margin:0 auto;
+      min-height:100vh;
+      display:grid;
+      align-items:center;
+      padding:18px;
+    }
+
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(14px);
+      overflow:hidden;
+    }
+
+    .hero{
+      padding:24px 22px 18px;
+      border-bottom:1px solid var(--line2);
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.05);
+      color:#dbe6ff;
+      font-size:.8rem;
+      margin-bottom:14px;
+    }
+
+    .dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:linear-gradient(180deg,var(--accent1),var(--accent2));
+      box-shadow:0 0 16px rgba(122,184,255,.7);
+    }
+
+    h1{
+      margin:0;
+      font-size:clamp(1.5rem,6vw,2rem);
+      line-height:1.08;
+      letter-spacing:-.03em;
+    }
+
+    .sub{
+      margin:10px 0 0;
+      color:var(--muted);
+      line-height:1.55;
+      font-size:.96rem;
+    }
+
+    .body{
+      padding:20px 22px 22px;
+      display:grid;
+      gap:16px;
+    }
+
+    .info{
+      display:grid;
+      gap:10px;
+    }
+
+    .info-item{
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--line2);
+      border-radius:18px;
+      padding:14px 15px;
+    }
+
+    .label{
+      color:var(--soft);
+      font-size:.78rem;
+      margin-bottom:5px;
+    }
+
+    .value{
+      font-size:1rem;
+      font-weight:700;
+      line-height:1.4;
+      word-break:break-word;
+    }
+
+    .dropzone{
+      border:1.5px dashed rgba(122,184,255,.35);
+      background:linear-gradient(180deg,rgba(122,184,255,.06),rgba(255,255,255,.04));
+      border-radius:22px;
+      padding:18px;
+      display:grid;
+      gap:12px;
+    }
+
+    .dropzone.drag{
+      border-color:rgba(122,184,255,.85);
+      box-shadow:0 0 0 3px rgba(122,184,255,.08) inset;
+    }
+
+    .drop-title{
+      margin:0;
+      font-size:1rem;
+    }
+
+    .drop-text{
+      margin:0;
+      color:var(--soft);
+      line-height:1.5;
+      font-size:.9rem;
+    }
+
+    .actions{
+      display:grid;
+      gap:10px;
+    }
+
+    button{
+      border:none;
+      cursor:pointer;
+      border-radius:16px;
+      padding:15px 16px;
+      font:inherit;
+      transition:.2s ease;
+    }
+
+    button:hover{transform:translateY(-1px)}
+
+    .ghost-btn{
+      background:rgba(255,255,255,.06);
+      border:1px solid var(--line);
+      color:var(--text);
+    }
+
+    .primary-btn{
+      color:#fff;
+      background:linear-gradient(135deg,#5f8dff,#8b78ff);
+      box-shadow:0 14px 30px rgba(95,141,255,.25);
+      font-weight:700;
+    }
+
+    .hidden-input{display:none}
+
+    .file-list{
+      display:grid;
+      gap:8px;
+    }
+
+    .file-chip{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+      border-radius:14px;
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--line2);
+      font-size:.88rem;
+    }
+
+    .file-chip small{color:var(--soft)}
+
+    .progress-wrap{display:grid;gap:10px}
+
+    .progress-bar{
+      height:12px;
+      border-radius:999px;
+      background:rgba(255,255,255,.08);
+      border:1px solid var(--line2);
+      overflow:hidden;
+    }
+
+    .progress-fill{
+      width:0%;
+      height:100%;
+      border-radius:999px;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      transition:width .25s ease;
+    }
+
+    .progress-meta{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      color:var(--soft);
+      font-size:.86rem;
+      flex-wrap:wrap;
+    }
+
+    .success{
+      display:none;
+      padding:14px 15px;
+      border-radius:18px;
+      background:linear-gradient(180deg,rgba(126,240,179,.12),rgba(126,240,179,.05));
+      border:1px solid rgba(126,240,179,.28);
+      color:#eafff4;
+      font-size:.92rem;
+      line-height:1.5;
+    }
+
+    .success.show{display:block}
+
+    .footer-note{
+      color:var(--soft);
+      font-size:.8rem;
+      line-height:1.5;
+      text-align:center;
+      margin-top:2px;
+    }
+
+    @media (max-width:420px){
+      .wrap{padding:12px}
+      .hero{padding:20px 16px 16px}
+      .body{padding:16px}
+      .info-item,.dropzone{border-radius:18px}
+      button{padding:14px 14px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="hero">
+        <div class="eyebrow"><span class="dot"></span><span>UniPop Upload</span></div>
+        <h1>Déposez vos fichiers</h1>
+        <p class="sub">Les informations du formateur sont détectées automatiquement. Il ne reste qu’à choisir les fichiers et lancer l’envoi.</p>
+      </div>
+
+      <div class="body">
+        <div class="info">
+          <div class="info-item">
+            <div class="label">Formateur</div>
+            <div class="value" id="trainerName">—</div>
+          </div>
+          <div class="info-item">
+            <div class="label">Cours</div>
+            <div class="value" id="trainerCourse">—</div>
+          </div>
+          <div class="info-item">
+            <div class="label">Langue</div>
+            <div class="value" id="trainerLang">—</div>
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <div>
+            <h2 class="drop-title">Choisir des fichiers</h2>
+            <p class="drop-text">Photos et vidéos uniquement. Sur mobile, touchez le bouton ci-dessous pour ouvrir directement la sélection de fichiers.</p>
+          </div>
+
+          <div class="actions">
+            <button class="ghost-btn" id="selectFilesBtn">Choisir des fichiers</button>
+            <button class="primary-btn" id="uploadBtn">Upload your files</button>
+          </div>
+
+          <input id="fileInput" class="hidden-input" type="file" multiple accept="image/*,video/*" />
+          <div id="fileList" class="file-list"></div>
+
+          <div class="progress-wrap">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-meta">
+              <span id="progressLabel">Prêt</span>
+              <span id="progressPercent">0%</span>
+            </div>
+          </div>
+
+          <div class="success" id="successBox">Redirection vers votre dossier OneDrive…</div>
+        </div>
+
+        <div class="footer-note">Version mobile simplifiée. Le nom, le cours et la langue peuvent être récupérés automatiquement depuis votre JSON ou via l’URL du formateur.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const APP_BASE_URL = 'https://YOUR-GITHUB-PAGES-URL/upload.html';
+    const TRAINERS_JSON_URL = 'data/trainers.json';
+
+    const FALLBACK_TRAINERS = [
+      {
+        id:'jean-dupont',
+        slug:'jean-dupont',
+        name:'Jean Dupont',
+        course:'Photo créative',
+        lang:'FR',
+        onedrive:'https://YOUR-ONEDRIVE-LINK-JEAN'
+      },
+      {
+        id:'marie-schmit',
+        slug:'marie-schmit',
+        name:'Marie Schmit',
+        course:'Réseaux sociaux',
+        lang:'FR',
+        onedrive:'https://YOUR-ONEDRIVE-LINK-MARIE'
+      }
+    ];
+
+    let TRAINERS = [...FALLBACK_TRAINERS];
+    let selectedTrainer = null;
+    let selectedFiles = [];
+
+    const els = {
+      trainerName:document.getElementById('trainerName'),
+      trainerCourse:document.getElementById('trainerCourse'),
+      trainerLang:document.getElementById('trainerLang'),
+      dropzone:document.getElementById('dropzone'),
+      selectFilesBtn:document.getElementById('selectFilesBtn'),
+      uploadBtn:document.getElementById('uploadBtn'),
+      fileInput:document.getElementById('fileInput'),
+      fileList:document.getElementById('fileList'),
+      progressFill:document.getElementById('progressFill'),
+      progressLabel:document.getElementById('progressLabel'),
+      progressPercent:document.getElementById('progressPercent'),
+      successBox:document.getElementById('successBox')
+    };
+
+    function bytesToSize(bytes){
+      const units = ['B','KB','MB','GB'];
+      let i = 0;
+      let value = bytes;
+      while(value >= 1024 && i < units.length - 1){
+        value /= 1024;
+        i++;
+      }
+      return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    function updateProgress(percent, label){
+      els.progressFill.style.width = `${percent}%`;
+      els.progressPercent.textContent = `${percent}%`;
+      els.progressLabel.textContent = label;
+    }
+
+    function renderFiles(){
+      if(!selectedFiles.length){
+        els.fileList.innerHTML = '';
+        updateProgress(0, 'Prêt');
+        return;
+      }
+      els.fileList.innerHTML = selectedFiles.map(file => `
+        <div class="file-chip">
+          <span>${escapeHtml(file.name)}<br><small>${bytesToSize(file.size)}</small></span>
+          <small>${escapeHtml(file.type || 'file')}</small>
+        </div>
+      `).join('');
+      updateProgress(28, `${selectedFiles.length} fichier${selectedFiles.length > 1 ? 's' : ''} sélectionné${selectedFiles.length > 1 ? 's' : ''}`);
+    }
+
+    function escapeHtml(v){
+      return String(v)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#39;');
+    }
+
+    function getTrainerPageUrl(slug){
+      return `${APP_BASE_URL}?trainer=${encodeURIComponent(slug)}`;
+    }
+
+    function normalizeTrainer(item){
+      return {
+        id:item.id || item.slug || item.name?.toLowerCase().replace(/[^a-z0-9]+/gi,'-'),
+        slug:item.slug || item.id || item.name?.toLowerCase().replace(/[^a-z0-9]+/gi,'-'),
+        name:item.name || item.formateur || item.trainer || '—',
+        course:item.course || item.cours || item.intitule || '—',
+        lang:item.lang || item.language || item.langue || item.langueCoursNom || item.langueCoursCode || '—',
+        onedrive:item.onedrive || item.onedriveUrl || item.uploadLink || ''
+      };
+    }
+
+    async function loadTrainerData(){
+      try{
+        const res = await fetch(TRAINERS_JSON_URL, {cache:'no-store'});
+        if(!res.ok) throw new Error('json not found');
+        const data = await res.json();
+        if(Array.isArray(data)) TRAINERS = data.map(normalizeTrainer);
+        else if(Array.isArray(data.trainers)) TRAINERS = data.trainers.map(normalizeTrainer);
+      }catch(e){
+        TRAINERS = [...FALLBACK_TRAINERS];
+      }
+    }
+
+    function detectTrainer(){
+      const params = new URLSearchParams(window.location.search);
+      const slug = params.get('trainer');
+      const name = params.get('name');
+
+      if(slug){
+        selectedTrainer = TRAINERS.find(t => t.slug === slug || t.id === slug) || null;
+      }
+
+      if(!selectedTrainer && name){
+        const q = name.trim().toLowerCase();
+        selectedTrainer = TRAINERS.find(t => t.name.toLowerCase() === q) || null;
+      }
+
+      if(!selectedTrainer && TRAINERS.length){
+        selectedTrainer = TRAINERS[0];
+      }
+    }
+
+    function renderTrainer(){
+      els.trainerName.textContent = selectedTrainer?.name || '—';
+      els.trainerCourse.textContent = selectedTrainer?.course || '—';
+      els.trainerLang.textContent = selectedTrainer?.lang || '—';
+    }
+
+    function simulateUploadAndRedirect(){
+      if(!selectedTrainer){
+        alert('Aucun formateur détecté.');
+        return;
+      }
+      if(!selectedTrainer.onedrive || selectedTrainer.onedrive.includes('YOUR-ONEDRIVE-LINK')){
+        alert('Lien OneDrive manquant.');
+        return;
+      }
+      els.successBox.classList.add('show');
+      updateProgress(35, 'Préparation de l’envoi…');
+      setTimeout(() => updateProgress(72, 'Upload en cours…'), 350);
+      setTimeout(() => updateProgress(100, 'Redirection vers OneDrive…'), 900);
+      setTimeout(() => window.open(selectedTrainer.onedrive, '_blank', 'noopener'), 1200);
+    }
+
+    function bindEvents(){
+      els.selectFilesBtn.addEventListener('click', () => els.fileInput.click());
+
+      els.fileInput.addEventListener('change', e => {
+        selectedFiles = [...(e.target.files || [])];
+        renderFiles();
+      });
+
+      ['dragenter','dragover'].forEach(evt => {
+        els.dropzone.addEventListener(evt, e => {
+          e.preventDefault();
+          els.dropzone.classList.add('drag');
+        });
+      });
+
+      ['dragleave','drop'].forEach(evt => {
+        els.dropzone.addEventListener(evt, e => {
+          e.preventDefault();
+          if(evt === 'drop'){
+            selectedFiles = [...(e.dataTransfer.files || [])].filter(f => /^image\//.test(f.type) || /^video\//.test(f.type));
+            renderFiles();
+          }
+          els.dropzone.classList.remove('drag');
+        });
+      });
+
+      els.uploadBtn.addEventListener('click', simulateUploadAndRedirect);
+    }
+
+    async function init(){
+      await loadTrainerData();
+      detectTrainer();
+      renderTrainer();
+      bindEvents();
+
+      const currentUrl = selectedTrainer ? getTrainerPageUrl(selectedTrainer.slug) : APP_BASE_URL;
+      console.log('Trainer page URL:', currentUrl);
+    }
+
+    init();
+  </script>
+</body>
+</html>
