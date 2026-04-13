@@ -16,7 +16,6 @@
       --soft:#95a9cd;
       --accent1:#7ab8ff;
       --accent2:#8b78ff;
-      --good:#7ef0b3;
       --shadow:0 18px 50px rgba(0,0,0,.35);
       --radius:26px;
     }
@@ -115,12 +114,22 @@
       margin-bottom:5px;
     }
 
-    .value{
-      font-size:1rem;
+    .value,
+    .field,
+    .select{
+      width:100%;
+      background:transparent;
+      border:none;
+      color:var(--text);
+      font:inherit;
       font-weight:700;
-      line-height:1.4;
-      word-break:break-word;
+      outline:none;
+      padding:0;
+      margin:0;
+      appearance:none;
     }
+
+    .field::placeholder{color:#b8c7e1;font-weight:500}
 
     .dropzone{
       border:1.5px dashed rgba(122,184,255,.35);
@@ -261,19 +270,29 @@
       <div class="hero">
         <div class="eyebrow"><span class="dot"></span><span>UniPop Upload</span></div>
         <h1>Déposez vos fichiers</h1>
-        <p class="sub">Les informations du formateur sont détectées automatiquement. Il ne reste qu’à choisir les fichiers et lancer l’envoi.</p>
+        <p class="sub">Cherchez votre nom, choisissez votre cours du jour, puis envoyez simplement vos photos ou vidéos.</p>
       </div>
 
       <div class="body">
         <div class="info">
           <div class="info-item">
+            <div class="label">Rechercher votre nom</div>
+            <input id="trainerSearch" class="field" list="trainerNames" placeholder="Commencez à taper votre nom" />
+            <datalist id="trainerNames"></datalist>
+          </div>
+
+          <div class="info-item">
             <div class="label">Formateur</div>
             <div class="value" id="trainerName">—</div>
           </div>
+
           <div class="info-item">
-            <div class="label">Cours</div>
-            <div class="value" id="trainerCourse">—</div>
+            <div class="label">Choisir votre cours</div>
+            <select id="courseSelect" class="select">
+              <option value="">Sélectionnez votre cours</option>
+            </select>
           </div>
+
           <div class="info-item">
             <div class="label">Langue</div>
             <div class="value" id="trainerLang">—</div>
@@ -305,41 +324,52 @@
           <div class="success" id="successBox">Redirection vers votre dossier OneDrive…</div>
         </div>
 
-        <div class="footer-note">Version mobile simplifiée. Le nom, le cours et la langue peuvent être récupérés automatiquement depuis votre JSON ou via l’URL du formateur.</div>
+        <div class="footer-note">Le formulaire affiche seulement les cours trouvés pour le formateur choisi et actifs à la date de l’événement.</div>
       </div>
     </div>
   </div>
 
   <script>
-    const APP_BASE_URL = 'https://YOUR-GITHUB-PAGES-URL/upload.html';
-    const TRAINERS_JSON_URL = 'data/trainers.json';
+    const TRAININGS_JSON_URL = 'https://raw.githubusercontent.com/letzbug/signage/bd15a5eddb1f8b2d7201c0db854fe107c97cd09e/data/trainings.json';
+    const EVENT_DATE = '2026-05-08';
+
+    const ONEDRIVE_LINKS = {
+      // Beispiel:
+      // 'lea-valet': {
+      //   'Bestiaire illustré - Créatures réelles et imaginaires - dessin, gravure': 'https://...onedrive-link-1...',
+      //   'Imaginaire et processus créatifs - collage, gravure, illustrations': 'https://...onedrive-link-2...'
+      // },
+      // 'aurelie-andreos': {
+      //   'Yoga Vinyasa Lunch 2': 'https://...onedrive-link-3...'
+      // }
+    };
 
     const FALLBACK_TRAINERS = [
       {
-        id:'jean-dupont',
         slug:'jean-dupont',
         name:'Jean Dupont',
-        course:'Photo créative',
-        lang:'FR',
-        onedrive:'https://YOUR-ONEDRIVE-LINK-JEAN'
+        courses:[
+          { course:'Photo créative', lang:'FR', onedrive:'https://YOUR-ONEDRIVE-LINK-JEAN' }
+        ]
       },
       {
-        id:'marie-schmit',
         slug:'marie-schmit',
         name:'Marie Schmit',
-        course:'Réseaux sociaux',
-        lang:'FR',
-        onedrive:'https://YOUR-ONEDRIVE-LINK-MARIE'
+        courses:[
+          { course:'Réseaux sociaux', lang:'FR', onedrive:'https://YOUR-ONEDRIVE-LINK-MARIE' }
+        ]
       }
     ];
 
-    let TRAINERS = [...FALLBACK_TRAINERS];
+    let TRAINERS = [];
     let selectedTrainer = null;
     let selectedFiles = [];
 
     const els = {
+      trainerSearch:document.getElementById('trainerSearch'),
+      trainerNames:document.getElementById('trainerNames'),
       trainerName:document.getElementById('trainerName'),
-      trainerCourse:document.getElementById('trainerCourse'),
+      courseSelect:document.getElementById('courseSelect'),
       trainerLang:document.getElementById('trainerLang'),
       dropzone:document.getElementById('dropzone'),
       selectFilesBtn:document.getElementById('selectFilesBtn'),
@@ -351,6 +381,29 @@
       progressPercent:document.getElementById('progressPercent'),
       successBox:document.getElementById('successBox')
     };
+
+    function escapeHtml(v){
+      return String(v)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#39;');
+    }
+
+    function slugify(value){
+      return String(value || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g,'-')
+        .replace(/^-+|-+$/g,'');
+    }
+
+    function parseFrDate(value){
+      if(!value || !/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return null;
+      const [d,m,y] = value.split('/').map(Number);
+      return new Date(y, m - 1, d, 12, 0, 0);
+    }
 
     function bytesToSize(bytes){
       const units = ['B','KB','MB','GB'];
@@ -375,93 +428,171 @@
         updateProgress(0, 'Prêt');
         return;
       }
+
       els.fileList.innerHTML = selectedFiles.map(file => `
         <div class="file-chip">
           <span>${escapeHtml(file.name)}<br><small>${bytesToSize(file.size)}</small></span>
           <small>${escapeHtml(file.type || 'file')}</small>
         </div>
       `).join('');
-      updateProgress(28, `${selectedFiles.length} fichier${selectedFiles.length > 1 ? 's' : ''} sélectionné${selectedFiles.length > 1 ? 's' : ''}`);
+
+      updateProgress(
+        28,
+        `${selectedFiles.length} fichier${selectedFiles.length > 1 ? 's' : ''} sélectionné${selectedFiles.length > 1 ? 's' : ''}`
+      );
     }
 
-    function escapeHtml(v){
-      return String(v)
-        .replaceAll('&','&amp;')
-        .replaceAll('<','&lt;')
-        .replaceAll('>','&gt;')
-        .replaceAll('"','&quot;')
-        .replaceAll("'",'&#39;');
+    function getOnedriveLink(trainerSlug, courseTitle){
+      return ONEDRIVE_LINKS?.[trainerSlug]?.[courseTitle] || '';
     }
 
-    function getTrainerPageUrl(slug){
-      return `${APP_BASE_URL}?trainer=${encodeURIComponent(slug)}`;
-    }
+    function groupTrainingsByTeacher(trainings){
+      const eventDate = new Date(EVENT_DATE + 'T12:00:00');
+      const map = new Map();
 
-    function normalizeTrainer(item){
-      return {
-        id:item.id || item.slug || item.name?.toLowerCase().replace(/[^a-z0-9]+/gi,'-'),
-        slug:item.slug || item.id || item.name?.toLowerCase().replace(/[^a-z0-9]+/gi,'-'),
-        name:item.name || item.formateur || item.trainer || '—',
-        course:item.course || item.cours || item.intitule || '—',
-        lang:item.lang || item.language || item.langue || item.langueCoursNom || item.langueCoursCode || '—',
-        onedrive:item.onedrive || item.onedriveUrl || item.uploadLink || ''
-      };
+      trainings.forEach(item => {
+        const teacherObj = Array.isArray(item.enseignants) && item.enseignants[0] ? item.enseignants[0] : null;
+        if(!teacherObj) return;
+
+        const name = `${teacherObj.prenom || ''} ${teacherObj.nom || ''}`.trim();
+        if(!name) return;
+
+        const start = parseFrDate(item.dateDebut);
+        const end = parseFrDate(item.dateFin);
+        const active = start && end ? eventDate >= start && eventDate <= end : true;
+        if(!active) return;
+
+        const slug = slugify(name);
+        if(!map.has(slug)){
+          map.set(slug, {
+            slug,
+            name,
+            courses: []
+          });
+        }
+
+        const courseTitle = item.intitule || item.coursCode || '—';
+
+        map.get(slug).courses.push({
+          course: courseTitle,
+          lang: item.langueCoursCode || item.langueCoursNom || '—',
+          coursCode: item.coursCode || item.coursId || '—',
+          onedrive: getOnedriveLink(slug, courseTitle)
+        });
+      });
+
+      return [...map.values()]
+        .map(trainer => ({
+          ...trainer,
+          courses: trainer.courses.sort((a,b) => a.course.localeCompare(b.course))
+        }))
+        .sort((a,b) => a.name.localeCompare(b.name));
     }
 
     async function loadTrainerData(){
       try{
-        const res = await fetch(TRAINERS_JSON_URL, {cache:'no-store'});
-        if(!res.ok) throw new Error('json not found');
+        const res = await fetch(TRAININGS_JSON_URL, {cache:'no-store'});
+        if(!res.ok) throw new Error('JSON not found');
         const data = await res.json();
-        if(Array.isArray(data)) TRAINERS = data.map(normalizeTrainer);
-        else if(Array.isArray(data.trainers)) TRAINERS = data.trainers.map(normalizeTrainer);
+        TRAINERS = Array.isArray(data) ? groupTrainingsByTeacher(data) : FALLBACK_TRAINERS;
+        if(!TRAINERS.length) TRAINERS = FALLBACK_TRAINERS;
       }catch(e){
-        TRAINERS = [...FALLBACK_TRAINERS];
+        TRAINERS = FALLBACK_TRAINERS;
       }
     }
 
-    function detectTrainer(){
-      const params = new URLSearchParams(window.location.search);
-      const slug = params.get('trainer');
-      const name = params.get('name');
+    function populateTrainerSearch(){
+      els.trainerNames.innerHTML = TRAINERS
+        .map(trainer => `<option value="${escapeHtml(trainer.name)}"></option>`)
+        .join('');
+    }
 
-      if(slug){
-        selectedTrainer = TRAINERS.find(t => t.slug === slug || t.id === slug) || null;
+    function populateCourses(){
+      els.courseSelect.innerHTML = '<option value="">Sélectionnez votre cours</option>';
+
+      if(!selectedTrainer || !selectedTrainer.courses?.length){
+        els.trainerLang.textContent = '—';
+        return;
       }
 
-      if(!selectedTrainer && name){
-        const q = name.trim().toLowerCase();
-        selectedTrainer = TRAINERS.find(t => t.name.toLowerCase() === q) || null;
-      }
-
-      if(!selectedTrainer && TRAINERS.length){
-        selectedTrainer = TRAINERS[0];
-      }
+      els.courseSelect.innerHTML += selectedTrainer.courses.map((course, index) => `
+        <option value="${index}">${escapeHtml(course.course)}</option>
+      `).join('');
     }
 
     function renderTrainer(){
       els.trainerName.textContent = selectedTrainer?.name || '—';
-      els.trainerCourse.textContent = selectedTrainer?.course || '—';
-      els.trainerLang.textContent = selectedTrainer?.lang || '—';
+      populateCourses();
+      els.trainerLang.textContent = '—';
+
+      if(selectedTrainer?.courses?.length === 1){
+        els.courseSelect.value = '0';
+        updateSelectedCourse();
+      }
+    }
+
+    function updateSelectedCourse(){
+      if(!selectedTrainer) return;
+      const picked = selectedTrainer.courses?.[Number(els.courseSelect.value)];
+      els.trainerLang.textContent = picked?.lang || '—';
+    }
+
+    function getSelectedOnedriveLink(){
+      if(!selectedTrainer) return '';
+      const picked = selectedTrainer.courses?.[Number(els.courseSelect.value)];
+      return picked?.onedrive || '';
     }
 
     function simulateUploadAndRedirect(){
       if(!selectedTrainer){
-        alert('Aucun formateur détecté.');
+        alert('Veuillez d’abord chercher et sélectionner votre nom.');
         return;
       }
-      if(!selectedTrainer.onedrive || selectedTrainer.onedrive.includes('YOUR-ONEDRIVE-LINK')){
-        alert('Lien OneDrive manquant.');
+
+      if(!els.courseSelect.value && els.courseSelect.value !== '0'){
+        alert('Veuillez choisir votre cours.');
         return;
       }
+
+      const onedrive = getSelectedOnedriveLink();
+      if(!onedrive){
+        alert('Lien OneDrive manquant pour ce cours.');
+        return;
+      }
+
       els.successBox.classList.add('show');
       updateProgress(35, 'Préparation de l’envoi…');
       setTimeout(() => updateProgress(72, 'Upload en cours…'), 350);
       setTimeout(() => updateProgress(100, 'Redirection vers OneDrive…'), 900);
-      setTimeout(() => window.open(selectedTrainer.onedrive, '_blank', 'noopener'), 1200);
+      setTimeout(() => window.open(onedrive, '_blank', 'noopener'), 1200);
+    }
+
+    function detectTrainerFromUrl(){
+      const params = new URLSearchParams(window.location.search);
+      const trainer = params.get('trainer');
+      const name = params.get('name');
+      const q = trainer || name;
+      if(!q) return;
+
+      selectedTrainer = TRAINERS.find(
+        t => t.slug === slugify(q) || t.name.toLowerCase() === q.trim().toLowerCase()
+      ) || null;
+
+      if(selectedTrainer){
+        els.trainerSearch.value = selectedTrainer.name;
+        renderTrainer();
+      }
     }
 
     function bindEvents(){
+      els.trainerSearch.addEventListener('change', () => {
+        const value = els.trainerSearch.value.trim().toLowerCase();
+        selectedTrainer = TRAINERS.find(t => t.name.toLowerCase() === value) || null;
+        renderTrainer();
+      });
+
+      els.courseSelect.addEventListener('change', updateSelectedCourse);
+
       els.selectFilesBtn.addEventListener('click', () => els.fileInput.click());
 
       els.fileInput.addEventListener('change', e => {
@@ -480,7 +611,9 @@
         els.dropzone.addEventListener(evt, e => {
           e.preventDefault();
           if(evt === 'drop'){
-            selectedFiles = [...(e.dataTransfer.files || [])].filter(f => /^image\//.test(f.type) || /^video\//.test(f.type));
+            selectedFiles = [...(e.dataTransfer.files || [])].filter(
+              f => /^image\//.test(f.type) || /^video\//.test(f.type)
+            );
             renderFiles();
           }
           els.dropzone.classList.remove('drag');
@@ -492,12 +625,9 @@
 
     async function init(){
       await loadTrainerData();
-      detectTrainer();
-      renderTrainer();
+      populateTrainerSearch();
+      detectTrainerFromUrl();
       bindEvents();
-
-      const currentUrl = selectedTrainer ? getTrainerPageUrl(selectedTrainer.slug) : APP_BASE_URL;
-      console.log('Trainer page URL:', currentUrl);
     }
 
     init();
